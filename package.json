@@ -1,0 +1,29 @@
+{
+  "name": "deep-diff",
+  "version": "2.0.0",
+  "description": "Library for computing structural differences between JavaScript objects",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/azuliani/deep-diff.git"
+  },
+  "keywords": [
+    "diff",
+    "deep-diff",
+    "object",
+    "compare",
+    "difference"
+  ],
+  "author": "azuliani",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/azuliani/deep-diff/issues"
+  },
+  "homepage": "https://github.com/azuliani/deep-diff#readme"
+}

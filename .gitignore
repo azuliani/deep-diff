@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+
+# macOS
+.DS_Store
+
+# IDEs
+.idea/
+*.iml
+
+# Claude Code
+.claude/
