@@ -126,6 +126,66 @@ export function generateConfig() {
   };
 }
 
+export function generateObjectWithDates(size) {
+  const obj = {
+    created: new Date('2020-01-01T00:00:00.000Z'),
+    updated: new Date('2024-01-15T12:30:00.000Z'),
+    items: [],
+  };
+  for (let i = 0; i < size; i++) {
+    obj.items.push({
+      id: i,
+      name: `item-${i}`,
+      timestamp: new Date(Date.now() - i * 86400000),
+    });
+  }
+  return obj;
+}
+
+export function generateEventLog(size) {
+  const events = [];
+  const baseTime = new Date('2024-01-01T00:00:00.000Z').getTime();
+  for (let i = 0; i < size; i++) {
+    events.push({
+      id: `evt-${i}`,
+      type: ['click', 'view', 'purchase', 'login'][i % 4],
+      timestamp: new Date(baseTime + i * 3600000),
+      data: {
+        userId: `user-${i % 10}`,
+        value: Math.random() * 100,
+      },
+    });
+  }
+  return { events };
+}
+
+export function generateSchedule() {
+  return {
+    meetings: [
+      {
+        id: 'm1',
+        title: 'Standup',
+        start: new Date('2024-01-15T09:00:00.000Z'),
+        end: new Date('2024-01-15T09:30:00.000Z'),
+        recurring: true,
+      },
+      {
+        id: 'm2',
+        title: 'Sprint Planning',
+        start: new Date('2024-01-15T14:00:00.000Z'),
+        end: new Date('2024-01-15T16:00:00.000Z'),
+        recurring: false,
+      },
+    ],
+    deadlines: [
+      { task: 'Feature A', due: new Date('2024-01-20T23:59:59.000Z') },
+      { task: 'Feature B', due: new Date('2024-01-25T23:59:59.000Z') },
+      { task: 'Release', due: new Date('2024-01-31T23:59:59.000Z') },
+    ],
+    lastSync: new Date('2024-01-15T08:00:00.000Z'),
+  };
+}
+
 export function clone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
