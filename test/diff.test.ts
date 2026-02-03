@@ -370,4 +370,26 @@ describe('diff', () => {
       assert.strictEqual(result![0].kind, 'D');
     });
   });
+
+  describe('array diff output order guarantee', () => {
+    it('outputs array deletions in ascending index order', () => {
+      const result = diff({ arr: [1, 2, 3, 4, 5] }, { arr: [1, 2] });
+      assert.strictEqual(result!.length, 3);
+      const indices = result!.map((d) => (d as AnyDiff & { index: number }).index);
+      assert.deepStrictEqual(indices, [2, 3, 4]);
+    });
+
+    it('outputs array additions in ascending index order', () => {
+      const result = diff({ arr: [1, 2] }, { arr: [1, 2, 3, 4, 5] });
+      assert.strictEqual(result!.length, 3);
+      const indices = result!.map((d) => (d as AnyDiff & { index: number }).index);
+      assert.deepStrictEqual(indices, [2, 3, 4]);
+    });
+
+    it('outputs root-level array diffs in ascending index order', () => {
+      const result = diff([1, 2, 3, 4, 5], [1, 2]);
+      const indices = result!.map((d) => (d as AnyDiff & { index: number }).index);
+      assert.deepStrictEqual(indices, [2, 3, 4]);
+    });
+  });
 });

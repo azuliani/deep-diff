@@ -259,21 +259,11 @@ export function applyDiff(target: Target, differences: AnyDiff[] | undefined): v
     return;
   }
 
-  // Sort to process array deletions from highest index first
-  // to avoid index shifting issues
-  const sorted = [...differences].sort((a, b) => {
-    if (
-      isDiffArray(a) &&
-      isDiffArray(b) &&
-      isDiffDeletedItem(a.item) &&
-      isDiffDeletedItem(b.item)
-    ) {
-      return b.index - a.index;
-    }
-    return 0;
-  });
-
-  for (const change of sorted) {
-    applyChange(target, true, change);
+  // Apply diffs in reverse order to handle array deletions correctly.
+  // The diff algorithm outputs array changes in ascending index order,
+  // so reverse iteration ensures deletions are applied from highest
+  // index first, avoiding index shifting issues.
+  for (let i = differences.length - 1; i >= 0; i--) {
+    applyChange(target, true, differences[i]);
   }
 }
