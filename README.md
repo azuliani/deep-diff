@@ -8,12 +8,14 @@ Compute structural differences between JavaScript objects. Produces detailed dif
 npm install github:azuliani/deep-diff
 ```
 
-Requires Node.js 18+.
+Requires Node.js 23.6+ (for native TypeScript stripping).
 
 ## Usage
 
-```javascript
-const { diff, applyDiff } = require('deep-diff');
+### ESM (recommended)
+
+```typescript
+import { diff, applyDiff } from 'deep-diff';
 
 const before = { name: 'Alice', age: 30 };
 const after = { name: 'Bob', age: 25 };
@@ -28,15 +30,20 @@ applyDiff(before, differences);
 // before is now { name: 'Bob', age: 25 }
 ```
 
+### CommonJS
+
+```javascript
+const { diff, applyDiff } = require('deep-diff');
+
+const differences = diff(before, after);
+applyDiff(before, differences);
+```
+
 ## API
 
 ### diff(lhs, rhs)
 
 Returns an array of differences between two objects, or `undefined` if identical.
-
-### observableDiff(lhs, rhs, callback)
-
-Calls `callback(difference)` for each difference found.
 
 ### applyDiff(target, differences)
 
@@ -68,6 +75,16 @@ Each difference has a `kind` property:
 - `rhs` - New value (right-hand side)
 - `index` - Array index (for kind `A`)
 - `item` - Nested difference (for kind `A`)
+
+## TypeScript
+
+Full TypeScript support with exported types:
+
+```typescript
+import { diff, AnyDiff, DiffKind, PropertyPath } from 'deep-diff';
+
+const differences: AnyDiff[] | undefined = diff(obj1, obj2);
+```
 
 ## License
 
