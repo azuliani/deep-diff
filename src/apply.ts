@@ -11,6 +11,7 @@ type Target = Record<string | number, unknown>;
  * @param datePaths - Array of paths to Date values (e.g., [['rhs'], ['rhs', 'created']])
  * @param prefix - The prefix to match (e.g., 'rhs' for apply, 'lhs' for revert)
  * @returns The value with dates restored (may be the original value or a new Date)
+ * @internal
  */
 function restoreDates(value: unknown, datePaths: PropertyPath[], prefix: string): unknown {
   for (const path of datePaths) {
@@ -42,6 +43,7 @@ function restoreDates(value: unknown, datePaths: PropertyPath[], prefix: string)
  * @param item - The array item change to apply (DiffNewItem or DiffDeletedItem)
  * @param datePaths - Optional date paths from parent DiffArray (already prefixed with 'item')
  * @returns The modified array
+ * @internal
  */
 export function applyArrayChange(
   arr: unknown[],
@@ -69,11 +71,26 @@ export function applyArrayChange(
 }
 
 /**
- * Applies a single change to transform target toward source.
- * @param target - The object to modify
+ * Applies a single change to transform target toward the rhs value.
+ *
+ * Use this function when you need fine-grained control over applying individual
+ * differences. For most use cases, {@link applyDiff} is more convenient.
+ *
+ * @param target - The object to modify (mutated in place)
  * @param _source - The source object (unused, kept for API compatibility)
  * @param change - The change to apply
- * @throws DiffError if target is invalid or change is malformed
+ * @throws {@link DiffError} if target is invalid or change is malformed
+ *
+ * @example
+ * import { diff, applyChange } from '@azuliani/deep-diff';
+ *
+ * const obj = { name: 'Alice', age: 30 };
+ * const differences = diff(obj, { name: 'Bob', age: 30 });
+ *
+ * // Apply just the first change
+ * applyChange(obj, null, differences[0]);
+ * // obj is now { name: 'Bob', age: 30 }
+ *
  * @deprecated The _source parameter is unused and will be removed in a future version
  */
 export function applyChange(target: Target, _source: unknown, change: AnyDiff): void {
@@ -125,6 +142,7 @@ export function applyChange(target: Target, _source: unknown, change: AnyDiff): 
  * @param item - The array item change to revert (DiffNewItem or DiffDeletedItem)
  * @param datePaths - Optional date paths from parent DiffArray (already prefixed with 'item')
  * @returns The modified array
+ * @internal
  */
 export function revertArrayChange(
   arr: unknown[],
@@ -153,11 +171,29 @@ export function revertArrayChange(
 }
 
 /**
- * Reverts a single change to restore the original value.
- * @param target - The object to modify
+ * Reverts a single change to restore the original lhs value.
+ *
+ * Use this function to undo a change that was previously applied. The change
+ * must have a non-empty path (root-level changes cannot be reverted).
+ *
+ * @param target - The object to modify (mutated in place)
  * @param _source - The source object (unused, kept for API compatibility)
  * @param change - The change to revert
- * @throws DiffError if target is invalid, change is malformed, or path is empty
+ * @throws {@link DiffError} if target is invalid, change is malformed, or path is empty
+ *
+ * @example
+ * import { diff, applyChange, revertChange } from '@azuliani/deep-diff';
+ *
+ * const obj = { name: 'Alice' };
+ * const differences = diff(obj, { name: 'Bob' });
+ *
+ * // Apply then revert
+ * applyChange(obj, null, differences[0]);
+ * // obj is now { name: 'Bob' }
+ *
+ * revertChange(obj, null, differences[0]);
+ * // obj is now { name: 'Alice' }
+ *
  * @deprecated The _source parameter is unused and will be removed in a future version
  */
 export function revertChange(target: Target, _source: unknown, change: AnyDiff): void {
@@ -193,10 +229,30 @@ export function revertChange(target: Target, _source: unknown, change: AnyDiff):
 }
 
 /**
- * Applies differences to transform target to match the rhs.
- * applyDiff(before, diff(before, after)) modifies before to equal after.
- * @param target - The object to modify
- * @param differences - Array of diff objects from diff()
+ * Applies an array of differences to transform target to match the rhs.
+ *
+ * This is the primary function for applying diffs. It handles array deletions
+ * in the correct order (highest index first) to avoid index shifting issues.
+ *
+ * After calling `applyDiff(before, diff(before, after))`, `before` will be
+ * deeply equal to `after`.
+ *
+ * @param target - The object to modify (mutated in place)
+ * @param differences - Array of diff objects from {@link diff}, or undefined
+ *
+ * @example
+ * import { diff, applyDiff } from '@azuliani/deep-diff';
+ *
+ * const before = { name: 'Alice', items: [1, 2, 3] };
+ * const after = { name: 'Bob', items: [1, 2] };
+ *
+ * const differences = diff(before, after);
+ * applyDiff(before, differences);
+ * // before is now { name: 'Bob', items: [1, 2] }
+ *
+ * @example
+ * // Safe to call with undefined (no-op)
+ * applyDiff(obj, diff(obj, obj)); // Does nothing if objects are identical
  */
 export function applyDiff(target: Target, differences: AnyDiff[] | undefined): void {
   if (!target || !differences || differences.length === 0) {

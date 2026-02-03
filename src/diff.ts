@@ -14,6 +14,7 @@ import { realTypeOf } from './utils.ts';
  * @param value - The value to search
  * @param basePath - The base path prefix (e.g., ['lhs'] or ['rhs'])
  * @returns Array of paths to Date values
+ * @internal
  */
 function collectDatePaths(value: unknown, basePath: PropertyPath): PropertyPath[] {
   const paths: PropertyPath[] = [];
@@ -38,6 +39,7 @@ function collectDatePaths(value: unknown, basePath: PropertyPath): PropertyPath[
 
 /**
  * Combines lhs and rhs date paths, returning undefined if empty.
+ * @internal
  */
 function combineDatePaths(
   lhsPaths: PropertyPath[],
@@ -49,6 +51,7 @@ function combineDatePaths(
 
 /**
  * Recursively compares two values and collects differences.
+ * @internal
  */
 function collectDiffs(
   lhs: unknown,
@@ -166,10 +169,48 @@ function collectDiffs(
 }
 
 /**
- * Computes differences between two values and returns them as an array.
- * @param lhs - Left-hand side value
- * @param rhs - Right-hand side value
- * @returns Array of differences, or undefined if none
+ * Computes structural differences between two values.
+ *
+ * Recursively compares `lhs` (left-hand side / original) and `rhs` (right-hand side / new)
+ * and returns an array of difference objects describing all changes.
+ *
+ * Supports:
+ * - Primitive values (string, number, boolean, etc.)
+ * - Objects (compares own enumerable properties)
+ * - Arrays (detects additions, deletions, and modifications)
+ * - Dates (compares by timestamp)
+ * - RegExp (compares by string representation)
+ * - Circular references (detected and skipped)
+ *
+ * @param lhs - The original value (left-hand side)
+ * @param rhs - The new value (right-hand side)
+ * @returns Array of {@link AnyDiff} objects, or `undefined` if values are identical
+ *
+ * @example
+ * // Simple object comparison
+ * const differences = diff(
+ *   { name: 'Alice', age: 30 },
+ *   { name: 'Bob', age: 30 }
+ * );
+ * // [DiffEdit { kind: 'E', path: ['name'], lhs: 'Alice', rhs: 'Bob' }]
+ *
+ * @example
+ * // Nested object comparison
+ * const differences = diff(
+ *   { user: { name: 'Alice' } },
+ *   { user: { name: 'Bob' } }
+ * );
+ * // [DiffEdit { kind: 'E', path: ['user', 'name'], lhs: 'Alice', rhs: 'Bob' }]
+ *
+ * @example
+ * // Array comparison
+ * const differences = diff([1, 2], [1, 2, 3]);
+ * // [DiffArray { kind: 'A', index: 2, item: DiffNewItem { rhs: 3 } }]
+ *
+ * @example
+ * // Identical values
+ * const differences = diff({ a: 1 }, { a: 1 });
+ * // undefined
  */
 export function diff(lhs: unknown, rhs: unknown): AnyDiff[] | undefined {
   const accum: AnyDiff[] = [];

@@ -1,11 +1,47 @@
 import type { AnyDiff, PropertyPath } from './types.ts';
 
 /**
- * Error class for diff operations with error code.
+ * Error codes used by {@link DiffError}.
+ *
+ * - `INVALID_TARGET` - Target is null, undefined, or not an object
+ * - `INVALID_CHANGE` - Change object is malformed or has invalid kind
+ * - `EMPTY_PATH` - Operation requires a non-empty path
+ * - `NOT_OBJECT` - Cannot traverse path through non-object value
+ * - `INVALID_PATH` - Path contains null or undefined segment
+ */
+export type DiffErrorCode =
+  | 'INVALID_TARGET'
+  | 'INVALID_CHANGE'
+  | 'EMPTY_PATH'
+  | 'NOT_OBJECT'
+  | 'INVALID_PATH';
+
+/**
+ * Error class for diff operations with structured error codes.
+ * Thrown by {@link applyChange}, {@link revertChange}, and related functions
+ * when encountering invalid inputs or paths.
+ *
+ * @example
+ * import { DiffError, applyChange } from 'deep-diff';
+ *
+ * try {
+ *   applyChange(null, {}, someChange);
+ * } catch (e) {
+ *   if (e instanceof DiffError) {
+ *     console.log(e.code);    // 'INVALID_TARGET'
+ *     console.log(e.message); // 'target cannot be null or undefined'
+ *   }
+ * }
  */
 export class DiffError extends Error {
+  /** The error code identifying the type of error */
   readonly code: string;
 
+  /**
+   * Creates a new DiffError.
+   * @param message - Human-readable error message
+   * @param code - Error code for programmatic handling
+   */
   constructor(message: string, code: string) {
     super(message);
     this.name = 'DiffError';
@@ -15,6 +51,14 @@ export class DiffError extends Error {
 
 /**
  * Extended type detection beyond typeof.
+ * Distinguishes between types that JavaScript's `typeof` operator conflates.
+ *
+ * @example
+ * realTypeOf([])           // 'array'
+ * realTypeOf(null)         // 'null'
+ * realTypeOf(new Date())   // 'date'
+ * realTypeOf(/regex/)      // 'regexp'
+ * realTypeOf({})           // 'object'
  */
 export type RealType =
   | 'undefined'
@@ -35,8 +79,9 @@ export type RealType =
  * Removes element(s) from an array in place.
  * @param arr - The array to modify
  * @param from - Start index
- * @param to - End index (optional)
+ * @param to - End index (optional, defaults to from)
  * @returns The modified array
+ * @internal
  */
 export function arrayRemove<T>(arr: T[], from: number, to?: number): T[] {
   const rest = arr.slice((to ?? from) + 1 || arr.length);
@@ -48,8 +93,18 @@ export function arrayRemove<T>(arr: T[], from: number, to?: number): T[] {
 /**
  * Returns a more specific type string than typeof.
  * Distinguishes: array, date, regexp, null, math, and standard types.
+ *
  * @param subject - The value to check
  * @returns The type string
+ *
+ * @example
+ * realTypeOf([1, 2, 3])      // 'array'
+ * realTypeOf(null)           // 'null'
+ * realTypeOf(new Date())     // 'date'
+ * realTypeOf(/pattern/)      // 'regexp'
+ * realTypeOf(Math)           // 'math'
+ * realTypeOf({ key: 'val' }) // 'object'
+ * realTypeOf(42)             // 'number'
  */
 export function realTypeOf(subject: unknown): RealType {
   const type = typeof subject;
@@ -77,7 +132,8 @@ export function realTypeOf(subject: unknown): RealType {
 type Target = Record<string | number, unknown>;
 
 /**
- * Result of path traversal.
+ * Result of successful path traversal.
+ * @internal
  */
 export interface TraverseResult {
   /** The object at the end of the traversal (parent of final key) */
@@ -90,6 +146,7 @@ export interface TraverseResult {
 
 /**
  * Error result from path traversal.
+ * @internal
  */
 export interface TraverseError {
   ok: false;
@@ -102,6 +159,7 @@ export interface TraverseError {
  * @param path - The path to traverse
  * @param createMissing - Whether to create missing intermediate objects/arrays
  * @returns TraverseResult on success, TraverseError on failure
+ * @internal
  */
 export function traversePath(
   target: Target,
@@ -158,7 +216,8 @@ export function traversePath(
  * Validates that target is a non-null object.
  * @param target - The value to validate
  * @param paramName - Name of the parameter for error messages
- * @throws DiffError if target is null or not an object
+ * @throws {@link DiffError} if target is null or not an object
+ * @internal
  */
 export function assertTarget(
   target: unknown,
@@ -178,7 +237,8 @@ export function assertTarget(
 /**
  * Validates that a change object has required fields for its kind.
  * @param change - The change to validate
- * @throws DiffError if change is invalid
+ * @throws {@link DiffError} if change is invalid
+ * @internal
  */
 export function assertValidChange(change: AnyDiff): void {
   if (!change || typeof change !== 'object') {

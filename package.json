@@ -1,10 +1,13 @@
 {
-  "name": "deep-diff",
-  "version": "0.0.1",
+  "name": "@azuliani/deep-diff",
+  "version": "1.0.0",
   "description": "Library for computing structural differences between JavaScript objects",
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "exports": {
     ".": {
@@ -31,12 +34,14 @@
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "build:cjs-package": "echo '{\"type\":\"commonjs\"}' > dist/cjs/package.json",
     "test": "node --test test/*.test.ts",
+    "test:coverage": "node --test --experimental-test-coverage test/*.test.ts",
     "bench": "npm run build && node bench/run.js",
     "bench:gc": "npm run build && node --expose-gc bench/run.js",
     "lint": "eslint src test",
     "lint:fix": "eslint src test --fix",
     "format": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
-    "format:check": "prettier --check 'src/**/*.ts' 'test/**/*.ts'"
+    "format:check": "prettier --check 'src/**/*.ts' 'test/**/*.ts'",
+    "docs": "typedoc --out docs src/index.ts"
   },
   "repository": {
     "type": "git",
@@ -60,6 +65,7 @@
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.8.1",
+    "typedoc": "^0.27.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.54.0"
   }
