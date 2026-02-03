@@ -10,3 +10,9 @@ node_modules/
 
 # Claude Code
 .claude/
+
+# Build output
+dist/
+
+# Generated docs
+docs/
