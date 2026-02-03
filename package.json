@@ -1,6 +1,6 @@
 {
-  "name": "deep-diff",
-  "version": "2.0.0",
+  "name": "@azuliani/deep-diff",
+  "version": "0.0.1",
   "description": "Library for computing structural differences between JavaScript objects",
   "main": "index.js",
   "engines": {
