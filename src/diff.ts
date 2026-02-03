@@ -3,6 +3,41 @@ import type { AnyDiff, PropertyPath } from './types.ts';
 import { realTypeOf } from './utils.ts';
 
 /**
+ * Collects paths to all Date values within a value.
+ * @param value - The value to search
+ * @param basePath - The base path prefix (e.g., ['lhs'] or ['rhs'])
+ * @returns Array of paths to Date values
+ */
+function collectDatePaths(value: unknown, basePath: PropertyPath): PropertyPath[] {
+  const paths: PropertyPath[] = [];
+
+  function collect(val: unknown, path: PropertyPath): void {
+    if (val instanceof Date) {
+      paths.push(path);
+    } else if (Array.isArray(val)) {
+      for (let i = 0; i < val.length; i++) {
+        collect(val[i], [...path, i]);
+      }
+    } else if (val !== null && typeof val === 'object') {
+      for (const key of Object.keys(val)) {
+        collect((val as Record<string, unknown>)[key], [...path, key]);
+      }
+    }
+  }
+
+  collect(value, basePath);
+  return paths;
+}
+
+/**
+ * Combines lhs and rhs date paths, returning undefined if empty.
+ */
+function combineDatePaths(lhsPaths: PropertyPath[], rhsPaths: PropertyPath[]): PropertyPath[] | undefined {
+  const combined = [...lhsPaths, ...rhsPaths];
+  return combined.length > 0 ? combined : undefined;
+}
+
+/**
  * Recursively compares two values and collects differences.
  */
 function collectDiffs(
@@ -31,18 +66,18 @@ function collectDiffs(
 
   if (ltype === 'undefined') {
     if (rtype !== 'undefined') {
-      accum.push(new DiffNew(currentPath, rhs));
+      accum.push(new DiffNew(currentPath, rhs, collectDatePaths(rhs, ['rhs'])));
     }
   } else if (rtype === 'undefined') {
-    accum.push(new DiffDeleted(currentPath, lhs));
+    accum.push(new DiffDeleted(currentPath, lhs, collectDatePaths(lhs, ['lhs'])));
   } else if (lhsType !== rhsType) {
-    accum.push(new DiffEdit(currentPath, lhs, rhs));
+    accum.push(new DiffEdit(currentPath, lhs, rhs, combineDatePaths(collectDatePaths(lhs, ['lhs']), collectDatePaths(rhs, ['rhs']))));
   } else if (
     lhsCompare instanceof Date &&
     rhsCompare instanceof Date &&
     lhsCompare.getTime() !== rhsCompare.getTime()
   ) {
-    accum.push(new DiffEdit(currentPath, lhs, rhs));
+    accum.push(new DiffEdit(currentPath, lhs, rhs, [['lhs'], ['rhs']]));
   } else if (ltype === 'object' && lhsCompare !== null && rhsCompare !== null) {
     stack = stack || [];
     if (!stack.includes(lhsCompare)) {
@@ -56,14 +91,14 @@ function collectDiffs(
 
         for (i = 0; i < len; i++) {
           if (i >= rhsArr.length) {
-            accum.push(new DiffArray(currentPath, i, new DiffDeletedItem(lhsArr[i])));
+            accum.push(new DiffArray(currentPath, i, new DiffDeletedItem(lhsArr[i], collectDatePaths(lhsArr[i], ['lhs']))));
           } else {
             collectDiffs(lhsArr[i], rhsArr[i], accum, currentPath, i, stack);
           }
         }
 
         while (i < rhsArr.length) {
-          accum.push(new DiffArray(currentPath, i, new DiffNewItem(rhsArr[i])));
+          accum.push(new DiffArray(currentPath, i, new DiffNewItem(rhsArr[i], collectDatePaths(rhsArr[i], ['rhs']))));
           i++;
         }
       } else {
@@ -90,7 +125,7 @@ function collectDiffs(
     }
   } else if (lhsCompare !== rhsCompare) {
     if (!(ltype === 'number' && Number.isNaN(lhsCompare) && Number.isNaN(rhsCompare))) {
-      accum.push(new DiffEdit(currentPath, lhs, rhs));
+      accum.push(new DiffEdit(currentPath, lhs, rhs, combineDatePaths(collectDatePaths(lhs, ['lhs']), collectDatePaths(rhs, ['rhs']))));
     }
   }
 }

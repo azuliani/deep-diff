@@ -18,9 +18,13 @@ export type PropertyPath = (string | number)[];
 export class DiffNewItem {
   readonly kind = 'N' as const;
   readonly rhs: unknown;
+  $dates?: PropertyPath[];
 
-  constructor(value: unknown) {
+  constructor(value: unknown, datePaths?: PropertyPath[]) {
     this.rhs = value;
+    if (datePaths && datePaths.length > 0) {
+      this.$dates = datePaths;
+    }
   }
 }
 
@@ -30,9 +34,13 @@ export class DiffNewItem {
 export class DiffDeletedItem {
   readonly kind = 'D' as const;
   readonly lhs: unknown;
+  $dates?: PropertyPath[];
 
-  constructor(value: unknown) {
+  constructor(value: unknown, datePaths?: PropertyPath[]) {
     this.lhs = value;
+    if (datePaths && datePaths.length > 0) {
+      this.$dates = datePaths;
+    }
   }
 }
 
@@ -50,11 +58,15 @@ export class DiffEdit {
   readonly path?: PropertyPath;
   readonly lhs: unknown;
   readonly rhs: unknown;
+  $dates?: PropertyPath[];
 
-  constructor(path: PropertyPath, origin: unknown, value: unknown) {
+  constructor(path: PropertyPath, origin: unknown, value: unknown, datePaths?: PropertyPath[]) {
     if (path.length) this.path = path;
     this.lhs = origin;
     this.rhs = value;
+    if (datePaths && datePaths.length > 0) {
+      this.$dates = datePaths;
+    }
   }
 }
 
@@ -66,10 +78,14 @@ export class DiffNew {
   readonly kind = 'N' as const;
   readonly path?: PropertyPath;
   readonly rhs: unknown;
+  $dates?: PropertyPath[];
 
-  constructor(path: PropertyPath, value: unknown) {
+  constructor(path: PropertyPath, value: unknown, datePaths?: PropertyPath[]) {
     if (path.length) this.path = path;
     this.rhs = value;
+    if (datePaths && datePaths.length > 0) {
+      this.$dates = datePaths;
+    }
   }
 }
 
@@ -81,10 +97,14 @@ export class DiffDeleted {
   readonly kind = 'D' as const;
   readonly path?: PropertyPath;
   readonly lhs: unknown;
+  $dates?: PropertyPath[];
 
-  constructor(path: PropertyPath, value: unknown) {
+  constructor(path: PropertyPath, value: unknown, datePaths?: PropertyPath[]) {
     if (path.length) this.path = path;
     this.lhs = value;
+    if (datePaths && datePaths.length > 0) {
+      this.$dates = datePaths;
+    }
   }
 }
 
@@ -97,11 +117,17 @@ export class DiffArray {
   readonly path?: PropertyPath;
   readonly index: number;
   readonly item: ArrayItemDiff;
+  $dates?: PropertyPath[];
 
   constructor(path: PropertyPath, index: number, item: ArrayItemDiff) {
     if (path.length) this.path = path;
     this.index = index;
     this.item = item;
+    // Lift $dates from item to this level, prefixing paths with 'item'
+    if (item.$dates && item.$dates.length > 0) {
+      this.$dates = item.$dates.map(p => ['item', ...p]);
+      delete item.$dates;
+    }
   }
 }
 

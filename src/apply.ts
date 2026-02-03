@@ -1,22 +1,75 @@
 import { arrayRemove, assertTarget, assertValidChange, traversePath, DiffError } from './utils.ts';
-import type { AnyDiff, ArrayItemDiff } from './types.ts';
+import type { AnyDiff, ArrayItemDiff, PropertyPath } from './types.ts';
 import { isDiffArray, isDiffDeleted, isDiffEdit, isDiffNew, isDiffDeletedItem } from './types.ts';
 
 type Target = Record<string | number, unknown>;
+
+/**
+ * Converts ISO date strings to Date objects at specified paths within a value.
+ * Mutates the value in place.
+ * @param value - The value to process
+ * @param datePaths - Array of paths to Date values (e.g., [['rhs'], ['rhs', 'created']])
+ * @param prefix - The prefix to match (e.g., 'rhs' for apply, 'lhs' for revert)
+ * @returns The value with dates restored (may be the original value or a new Date)
+ */
+function restoreDates(value: unknown, datePaths: PropertyPath[], prefix: string): unknown {
+  for (const path of datePaths) {
+    if (path[0] !== prefix) continue;
+
+    if (path.length === 1) {
+      // The value itself is a date
+      return new Date(value as string);
+    }
+
+    // Navigate to the nested location and convert
+    let current: unknown = value;
+    const restPath = path.slice(1);
+    for (let i = 0; i < restPath.length - 1; i++) {
+      current = (current as Record<string | number, unknown>)[restPath[i]];
+    }
+    const lastKey = restPath[restPath.length - 1];
+    (current as Record<string | number, unknown>)[lastKey] = new Date(
+      (current as Record<string | number, unknown>)[lastKey] as string
+    );
+  }
+  return value;
+}
+
+/**
+ * Gets the value to apply, restoring Dates if $dates marker is present.
+ */
+function getApplyValue(change: AnyDiff & { $dates?: PropertyPath[] }, field: 'rhs' | 'lhs'): unknown {
+  const value = (change as unknown as Record<string, unknown>)[field];
+  if (change.$dates && change.$dates.length > 0) {
+    return restoreDates(value, change.$dates, field);
+  }
+  return value;
+}
 
 /**
  * Applies an array item change to an array element.
  * @param arr - The array to modify
  * @param index - The index of the element
  * @param item - The array item change to apply (DiffNewItem or DiffDeletedItem)
+ * @param datePaths - Optional date paths from parent DiffArray (already prefixed with 'item')
  * @returns The modified array
  */
-export function applyArrayChange(arr: unknown[], index: number, item: ArrayItemDiff): unknown[] {
+export function applyArrayChange(arr: unknown[], index: number, item: ArrayItemDiff, datePaths?: PropertyPath[]): unknown[] {
   if (isDiffDeletedItem(item)) {
     arrayRemove(arr, index);
   } else {
-    // DiffNewItem - set the new value at index
-    arr[index] = item.rhs;
+    // DiffNewItem - set the new value at index, restoring dates if needed
+    let value = item.rhs;
+    if (datePaths && datePaths.length > 0) {
+      // Convert paths from ['item', 'rhs', ...] to ['rhs', ...]
+      const rhsPaths = datePaths
+        .filter(p => p[0] === 'item' && p[1] === 'rhs')
+        .map(p => p.slice(1));
+      if (rhsPaths.length > 0) {
+        value = restoreDates(value, rhsPaths, 'rhs');
+      }
+    }
+    arr[index] = value;
   }
   return arr;
 }
@@ -34,11 +87,12 @@ export function applyChange(target: Target, _source: unknown, change: AnyDiff): 
   assertValidChange(change);
 
   const path = change.path;
+  const datePaths = (change as AnyDiff & { $dates?: PropertyPath[] }).$dates;
 
   // Handle root-level changes (no path or empty path)
   if (!path || path.length === 0) {
     if (isDiffArray(change)) {
-      applyArrayChange(target as unknown as unknown[], change.index, change.item);
+      applyArrayChange(target as unknown as unknown[], change.index, change.item, datePaths);
     }
     return;
   }
@@ -52,11 +106,11 @@ export function applyChange(target: Target, _source: unknown, change: AnyDiff): 
   const { target: parent, key } = result;
 
   if (isDiffArray(change)) {
-    applyArrayChange(parent[key] as unknown[], change.index, change.item);
+    applyArrayChange(parent[key] as unknown[], change.index, change.item, datePaths);
   } else if (isDiffDeleted(change)) {
     delete parent[key];
   } else if (isDiffEdit(change) || isDiffNew(change)) {
-    parent[key] = change.rhs;
+    parent[key] = getApplyValue(change as AnyDiff & { $dates?: PropertyPath[] }, 'rhs');
   }
 }
 
@@ -65,12 +119,23 @@ export function applyChange(target: Target, _source: unknown, change: AnyDiff): 
  * @param arr - The array to modify
  * @param index - The index of the element
  * @param item - The array item change to revert (DiffNewItem or DiffDeletedItem)
+ * @param datePaths - Optional date paths from parent DiffArray (already prefixed with 'item')
  * @returns The modified array
  */
-export function revertArrayChange(arr: unknown[], index: number, item: ArrayItemDiff): unknown[] {
+export function revertArrayChange(arr: unknown[], index: number, item: ArrayItemDiff, datePaths?: PropertyPath[]): unknown[] {
   if (isDiffDeletedItem(item)) {
-    // Restore the deleted element
-    arr[index] = item.lhs;
+    // Restore the deleted element, restoring dates if needed
+    let value = item.lhs;
+    if (datePaths && datePaths.length > 0) {
+      // Convert paths from ['item', 'lhs', ...] to ['lhs', ...]
+      const lhsPaths = datePaths
+        .filter(p => p[0] === 'item' && p[1] === 'lhs')
+        .map(p => p.slice(1));
+      if (lhsPaths.length > 0) {
+        value = restoreDates(value, lhsPaths, 'lhs');
+      }
+    }
+    arr[index] = value;
   } else {
     // DiffNewItem - remove the added element
     arrayRemove(arr, index);
@@ -95,6 +160,8 @@ export function revertChange(target: Target, _source: unknown, change: AnyDiff):
     throw new DiffError('revertChange requires a non-empty path', 'EMPTY_PATH');
   }
 
+  const datePaths = (change as AnyDiff & { $dates?: PropertyPath[] }).$dates;
+
   // Traverse to parent, creating missing intermediate objects
   const result = traversePath(target, path, true);
   if (!result.ok) {
@@ -104,11 +171,11 @@ export function revertChange(target: Target, _source: unknown, change: AnyDiff):
   const { target: parent, key } = result;
 
   if (isDiffArray(change)) {
-    revertArrayChange(parent[key] as unknown[], change.index, change.item);
+    revertArrayChange(parent[key] as unknown[], change.index, change.item, datePaths);
   } else if (isDiffDeleted(change)) {
-    parent[key] = change.lhs;
+    parent[key] = getApplyValue(change as AnyDiff & { $dates?: PropertyPath[] }, 'lhs');
   } else if (isDiffEdit(change)) {
-    parent[key] = change.lhs;
+    parent[key] = getApplyValue(change as AnyDiff & { $dates?: PropertyPath[] }, 'lhs');
   } else if (isDiffNew(change)) {
     delete parent[key];
   }
