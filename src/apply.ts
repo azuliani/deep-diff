@@ -1,4 +1,4 @@
-import { arrayRemove, assertTarget, assertValidChange, traversePath, DiffError } from './utils.ts';
+import { arrayRemove, assertTarget, assertValidChange, DiffError } from './utils.ts';
 import type { AnyDiff, ArrayItemDiff, PropertyPath } from './types.ts';
 import { isDiffArray, isDiffDeleted, isDiffEdit, isDiffNew, isDiffDeletedItem } from './types.ts';
 
@@ -31,17 +31,6 @@ function restoreDates(value: unknown, datePaths: PropertyPath[], prefix: string)
     (current as Record<string | number, unknown>)[lastKey] = new Date(
       (current as Record<string | number, unknown>)[lastKey] as string
     );
-  }
-  return value;
-}
-
-/**
- * Gets the value to apply, restoring Dates if $dates marker is present.
- */
-function getApplyValue(change: AnyDiff & { $dates?: PropertyPath[] }, field: 'rhs' | 'lhs'): unknown {
-  const value = (change as unknown as Record<string, unknown>)[field];
-  if (change.$dates && change.$dates.length > 0) {
-    return restoreDates(value, change.$dates, field);
   }
   return value;
 }
@@ -87,30 +76,40 @@ export function applyChange(target: Target, _source: unknown, change: AnyDiff): 
   assertValidChange(change);
 
   const path = change.path;
-  const datePaths = (change as AnyDiff & { $dates?: PropertyPath[] }).$dates;
 
   // Handle root-level changes (no path or empty path)
   if (!path || path.length === 0) {
     if (isDiffArray(change)) {
-      applyArrayChange(target as unknown as unknown[], change.index, change.item, datePaths);
+      applyArrayChange(target as unknown as unknown[], change.index, change.item, change.$dates);
     }
     return;
   }
 
   // Traverse to parent, creating missing intermediate objects/arrays
-  const result = traversePath(target, path, true);
-  if (!result.ok) {
-    throw result.error;
+  let current: Target = target;
+  const lastIndex = path.length - 1;
+  for (let i = 0; i < lastIndex; i++) {
+    const pathKey = path[i];
+    const nextKey = path[i + 1];
+    const value = current[pathKey];
+    if (value === undefined || value === null) {
+      current[pathKey] = typeof nextKey === 'number' ? [] : {};
+    } else if (typeof value !== 'object') {
+      throw new DiffError(
+        `Cannot traverse path: property '${pathKey}' is not an object (found ${typeof value})`,
+        'NOT_OBJECT'
+      );
+    }
+    current = current[pathKey] as Target;
   }
-
-  const { target: parent, key } = result;
+  const key = path[lastIndex];
 
   if (isDiffArray(change)) {
-    applyArrayChange(parent[key] as unknown[], change.index, change.item, datePaths);
+    applyArrayChange(current[key] as unknown[], change.index, change.item, change.$dates);
   } else if (isDiffDeleted(change)) {
-    delete parent[key];
+    delete current[key];
   } else if (isDiffEdit(change) || isDiffNew(change)) {
-    parent[key] = getApplyValue(change as AnyDiff & { $dates?: PropertyPath[] }, 'rhs');
+    current[key] = change.$dates ? restoreDates(change.rhs, change.$dates, 'rhs') : change.rhs;
   }
 }
 
@@ -160,24 +159,26 @@ export function revertChange(target: Target, _source: unknown, change: AnyDiff):
     throw new DiffError('revertChange requires a non-empty path', 'EMPTY_PATH');
   }
 
-  const datePaths = (change as AnyDiff & { $dates?: PropertyPath[] }).$dates;
-
   // Traverse to parent, creating missing intermediate objects
-  const result = traversePath(target, path, true);
-  if (!result.ok) {
-    throw result.error;
+  let current: Target = target;
+  const lastIndex = path.length - 1;
+  for (let i = 0; i < lastIndex; i++) {
+    const pathKey = path[i];
+    if (current[pathKey] === undefined || current[pathKey] === null) {
+      current[pathKey] = {};
+    }
+    current = current[pathKey] as Target;
   }
-
-  const { target: parent, key } = result;
+  const key = path[lastIndex];
 
   if (isDiffArray(change)) {
-    revertArrayChange(parent[key] as unknown[], change.index, change.item, datePaths);
+    revertArrayChange(current[key] as unknown[], change.index, change.item, change.$dates);
   } else if (isDiffDeleted(change)) {
-    parent[key] = getApplyValue(change as AnyDiff & { $dates?: PropertyPath[] }, 'lhs');
+    current[key] = change.$dates ? restoreDates(change.lhs, change.$dates, 'lhs') : change.lhs;
   } else if (isDiffEdit(change)) {
-    parent[key] = getApplyValue(change as AnyDiff & { $dates?: PropertyPath[] }, 'lhs');
+    current[key] = change.$dates ? restoreDates(change.lhs, change.$dates, 'lhs') : change.lhs;
   } else if (isDiffNew(change)) {
-    delete parent[key];
+    delete current[key];
   }
 }
 
@@ -192,23 +193,16 @@ export function applyDiff(target: Target, differences: AnyDiff[] | undefined): v
     return;
   }
 
-  // Check if we need to sort (has array deletions)
-  const hasArrayDeletions = differences.some(
-    (d) => isDiffArray(d) && d.item.kind === 'D'
-  );
+  // Sort to process array deletions from highest index first
+  // to avoid index shifting issues
+  const sorted = [...differences].sort((a, b) => {
+    if (isDiffArray(a) && isDiffArray(b) && isDiffDeletedItem(a.item) && isDiffDeletedItem(b.item)) {
+      return b.index - a.index;
+    }
+    return 0;
+  });
 
-  // Only copy and sort if needed to avoid unnecessary array allocation
-  const toApply = hasArrayDeletions
-    ? [...differences].sort((a, b) => {
-        if (isDiffArray(a) && isDiffArray(b) && a.item.kind === 'D' && b.item.kind === 'D') {
-          // Both are array deletions - process higher indices first
-          return b.index - a.index;
-        }
-        return 0;
-      })
-    : differences;
-
-  for (const change of toApply) {
+  for (const change of sorted) {
     applyChange(target, true, change);
   }
 }
