@@ -250,8 +250,18 @@ describe('applyDiff', () => {
     });
 
     it('handles nested arrays', () => {
-      const before = { matrix: [[1, 2, 3], [3, 4, 5, 6]] };
-      const after = { matrix: [[1, 2], [3, 4]] };
+      const before = {
+        matrix: [
+          [1, 2, 3],
+          [3, 4, 5, 6],
+        ],
+      };
+      const after = {
+        matrix: [
+          [1, 2],
+          [3, 4],
+        ],
+      };
       applyDiff(before, diff(before, after));
       assert.deepStrictEqual(before, after);
     });
@@ -338,7 +348,11 @@ describe('input validation', () => {
 
     it('throws DiffError for array change without index', () => {
       const target: Record<string, unknown[]> = { arr: [1, 2, 3] };
-      const change = { kind: 'A' as const, path: ['arr'], item: { kind: 'E' as const, lhs: 1, rhs: 2 } } as unknown as AnyDiff;
+      const change = {
+        kind: 'A' as const,
+        path: ['arr'],
+        item: { kind: 'E' as const, lhs: 1, rhs: 2 },
+      } as unknown as AnyDiff;
       assert.throws(
         () => applyChange(target, null, change),
         (err: Error) => err instanceof DiffError && err.code === 'INVALID_CHANGE'

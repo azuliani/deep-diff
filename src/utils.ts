@@ -160,12 +160,18 @@ export function traversePath(
  * @param paramName - Name of the parameter for error messages
  * @throws DiffError if target is null or not an object
  */
-export function assertTarget(target: unknown, paramName: string = 'target'): asserts target is Target {
+export function assertTarget(
+  target: unknown,
+  paramName: string = 'target'
+): asserts target is Target {
   if (target === null || target === undefined) {
     throw new DiffError(`${paramName} cannot be null or undefined`, 'INVALID_TARGET');
   }
   if (typeof target !== 'object') {
-    throw new DiffError(`${paramName} must be an object (found ${typeof target})`, 'INVALID_TARGET');
+    throw new DiffError(
+      `${paramName} must be an object (found ${typeof target})`,
+      'INVALID_TARGET'
+    );
   }
 }
 

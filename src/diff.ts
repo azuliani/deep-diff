@@ -1,4 +1,11 @@
-import { DiffEdit, DiffNew, DiffDeleted, DiffArray, DiffNewItem, DiffDeletedItem } from './types.ts';
+import {
+  DiffEdit,
+  DiffNew,
+  DiffDeleted,
+  DiffArray,
+  DiffNewItem,
+  DiffDeletedItem,
+} from './types.ts';
 import type { AnyDiff, PropertyPath } from './types.ts';
 import { realTypeOf } from './utils.ts';
 
@@ -32,7 +39,10 @@ function collectDatePaths(value: unknown, basePath: PropertyPath): PropertyPath[
 /**
  * Combines lhs and rhs date paths, returning undefined if empty.
  */
-function combineDatePaths(lhsPaths: PropertyPath[], rhsPaths: PropertyPath[]): PropertyPath[] | undefined {
+function combineDatePaths(
+  lhsPaths: PropertyPath[],
+  rhsPaths: PropertyPath[]
+): PropertyPath[] | undefined {
   const combined = [...lhsPaths, ...rhsPaths];
   return combined.length > 0 ? combined : undefined;
 }
@@ -48,8 +58,7 @@ function collectDiffs(
   key?: string | number,
   stack?: unknown[]
 ): void {
-  const currentPath =
-    typeof key !== 'undefined' ? (path ? [...path, key] : [key]) : path || [];
+  const currentPath = typeof key !== 'undefined' ? (path ? [...path, key] : [key]) : path || [];
 
   const lhsType = realTypeOf(lhs);
   const rhsType = realTypeOf(rhs);
@@ -71,7 +80,14 @@ function collectDiffs(
   } else if (rtype === 'undefined') {
     accum.push(new DiffDeleted(currentPath, lhs, collectDatePaths(lhs, ['lhs'])));
   } else if (lhsType !== rhsType) {
-    accum.push(new DiffEdit(currentPath, lhs, rhs, combineDatePaths(collectDatePaths(lhs, ['lhs']), collectDatePaths(rhs, ['rhs']))));
+    accum.push(
+      new DiffEdit(
+        currentPath,
+        lhs,
+        rhs,
+        combineDatePaths(collectDatePaths(lhs, ['lhs']), collectDatePaths(rhs, ['rhs']))
+      )
+    );
   } else if (
     lhsCompare instanceof Date &&
     rhsCompare instanceof Date &&
@@ -91,14 +107,26 @@ function collectDiffs(
 
         for (i = 0; i < len; i++) {
           if (i >= rhsArr.length) {
-            accum.push(new DiffArray(currentPath, i, new DiffDeletedItem(lhsArr[i], collectDatePaths(lhsArr[i], ['lhs']))));
+            accum.push(
+              new DiffArray(
+                currentPath,
+                i,
+                new DiffDeletedItem(lhsArr[i], collectDatePaths(lhsArr[i], ['lhs']))
+              )
+            );
           } else {
             collectDiffs(lhsArr[i], rhsArr[i], accum, currentPath, i, stack);
           }
         }
 
         while (i < rhsArr.length) {
-          accum.push(new DiffArray(currentPath, i, new DiffNewItem(rhsArr[i], collectDatePaths(rhsArr[i], ['rhs']))));
+          accum.push(
+            new DiffArray(
+              currentPath,
+              i,
+              new DiffNewItem(rhsArr[i], collectDatePaths(rhsArr[i], ['rhs']))
+            )
+          );
           i++;
         }
       } else {
@@ -125,7 +153,14 @@ function collectDiffs(
     }
   } else if (lhsCompare !== rhsCompare) {
     if (!(ltype === 'number' && Number.isNaN(lhsCompare) && Number.isNaN(rhsCompare))) {
-      accum.push(new DiffEdit(currentPath, lhs, rhs, combineDatePaths(collectDatePaths(lhs, ['lhs']), collectDatePaths(rhs, ['rhs']))));
+      accum.push(
+        new DiffEdit(
+          currentPath,
+          lhs,
+          rhs,
+          combineDatePaths(collectDatePaths(lhs, ['lhs']), collectDatePaths(rhs, ['rhs']))
+        )
+      );
     }
   }
 }

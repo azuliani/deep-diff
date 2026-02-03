@@ -43,7 +43,12 @@ function restoreDates(value: unknown, datePaths: PropertyPath[], prefix: string)
  * @param datePaths - Optional date paths from parent DiffArray (already prefixed with 'item')
  * @returns The modified array
  */
-export function applyArrayChange(arr: unknown[], index: number, item: ArrayItemDiff, datePaths?: PropertyPath[]): unknown[] {
+export function applyArrayChange(
+  arr: unknown[],
+  index: number,
+  item: ArrayItemDiff,
+  datePaths?: PropertyPath[]
+): unknown[] {
   if (isDiffDeletedItem(item)) {
     arrayRemove(arr, index);
   } else {
@@ -52,8 +57,8 @@ export function applyArrayChange(arr: unknown[], index: number, item: ArrayItemD
     if (datePaths && datePaths.length > 0) {
       // Convert paths from ['item', 'rhs', ...] to ['rhs', ...]
       const rhsPaths = datePaths
-        .filter(p => p[0] === 'item' && p[1] === 'rhs')
-        .map(p => p.slice(1));
+        .filter((p) => p[0] === 'item' && p[1] === 'rhs')
+        .map((p) => p.slice(1));
       if (rhsPaths.length > 0) {
         value = restoreDates(value, rhsPaths, 'rhs');
       }
@@ -121,15 +126,20 @@ export function applyChange(target: Target, _source: unknown, change: AnyDiff): 
  * @param datePaths - Optional date paths from parent DiffArray (already prefixed with 'item')
  * @returns The modified array
  */
-export function revertArrayChange(arr: unknown[], index: number, item: ArrayItemDiff, datePaths?: PropertyPath[]): unknown[] {
+export function revertArrayChange(
+  arr: unknown[],
+  index: number,
+  item: ArrayItemDiff,
+  datePaths?: PropertyPath[]
+): unknown[] {
   if (isDiffDeletedItem(item)) {
     // Restore the deleted element, restoring dates if needed
     let value = item.lhs;
     if (datePaths && datePaths.length > 0) {
       // Convert paths from ['item', 'lhs', ...] to ['lhs', ...]
       const lhsPaths = datePaths
-        .filter(p => p[0] === 'item' && p[1] === 'lhs')
-        .map(p => p.slice(1));
+        .filter((p) => p[0] === 'item' && p[1] === 'lhs')
+        .map((p) => p.slice(1));
       if (lhsPaths.length > 0) {
         value = restoreDates(value, lhsPaths, 'lhs');
       }
@@ -196,7 +206,12 @@ export function applyDiff(target: Target, differences: AnyDiff[] | undefined): v
   // Sort to process array deletions from highest index first
   // to avoid index shifting issues
   const sorted = [...differences].sort((a, b) => {
-    if (isDiffArray(a) && isDiffArray(b) && isDiffDeletedItem(a.item) && isDiffDeletedItem(b.item)) {
+    if (
+      isDiffArray(a) &&
+      isDiffArray(b) &&
+      isDiffDeletedItem(a.item) &&
+      isDiffDeletedItem(b.item)
+    ) {
       return b.index - a.index;
     }
     return 0;

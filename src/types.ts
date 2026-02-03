@@ -125,7 +125,7 @@ export class DiffArray {
     this.item = item;
     // Lift $dates from item to this level, prefixing paths with 'item'
     if (item.$dates && item.$dates.length > 0) {
-      this.$dates = item.$dates.map(p => ['item', ...p]);
+      this.$dates = item.$dates.map((p) => ['item', ...p]);
       delete item.$dates;
     }
   }

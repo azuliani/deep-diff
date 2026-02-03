@@ -57,7 +57,9 @@ describe('JSON serialization of diffs with Date objects', () => {
     });
 
     it('adds $dates marker with paths for Dates in arrays', () => {
-      const before = { dates: [new Date('2020-01-01T00:00:00.000Z'), new Date('2020-06-01T00:00:00.000Z')] };
+      const before = {
+        dates: [new Date('2020-01-01T00:00:00.000Z'), new Date('2020-06-01T00:00:00.000Z')],
+      };
       const after = {};
       const diffs = diff(before, after)!;
 
@@ -66,7 +68,10 @@ describe('JSON serialization of diffs with Date objects', () => {
 
       assert.strictEqual(parsed[0].lhs[0], '2020-01-01T00:00:00.000Z');
       assert.strictEqual(parsed[0].lhs[1], '2020-06-01T00:00:00.000Z');
-      assert.deepStrictEqual(parsed[0].$dates, [['lhs', 0], ['lhs', 1]]);
+      assert.deepStrictEqual(parsed[0].$dates, [
+        ['lhs', 0],
+        ['lhs', 1],
+      ]);
     });
 
     it('adds $dates marker for DiffArray items with Date values', () => {
@@ -104,7 +109,10 @@ describe('JSON serialization of diffs with Date objects', () => {
       const json = JSON.stringify(diffs);
       const parsed = JSON.parse(json);
 
-      assert.deepStrictEqual(parsed[0].$dates, [['lhs', 'created'], ['lhs', 'updated']]);
+      assert.deepStrictEqual(parsed[0].$dates, [
+        ['lhs', 'created'],
+        ['lhs', 'updated'],
+      ]);
     });
   });
 
@@ -271,7 +279,10 @@ describe('JSON serialization of diffs with Date objects', () => {
       const json = JSON.stringify(diffs);
       const parsed = JSON.parse(json);
 
-      const target: Record<string, unknown> = { name: 'Test', createdAt: new Date('2020-01-01T00:00:00.000Z') };
+      const target: Record<string, unknown> = {
+        name: 'Test',
+        createdAt: new Date('2020-01-01T00:00:00.000Z'),
+      };
       applyDiff(target, parsed);
 
       assert.ok(!('createdAt' in target));
@@ -411,7 +422,12 @@ describe('JSON serialization of diffs with Date objects', () => {
       const target: Record<string, unknown> = {};
       applyDiff(target, parsed);
 
-      const config = target.config as { name: string; count: number; created: Date; tags: string[] };
+      const config = target.config as {
+        name: string;
+        count: number;
+        created: Date;
+        tags: string[];
+      };
       assert.strictEqual(config.name, 'test');
       assert.strictEqual(config.count, 42);
       assert.ok(config.created instanceof Date);
